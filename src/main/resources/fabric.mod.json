@@ -1,30 +1,24 @@
 {
   "schemaVersion": 1,
-  "id": "vulkanmod",
+  "id": "void-client",
   "version": "${version}",
 
-  "name": "VulkanMod",
-  "description": "Bring Vulkan to Minecraft!",
-  "authors": [
-    "Collateral"
-  ],
+  "name": "Void Client",
+  "description": "An extensible Minecraft client that stays out of your way.",
+  "authors": ["gabrieljemail", "Collateral"],
   "contact": {
     "homepage": "",
-    "sources": "https://github.com/xCollateral/VulkanMod"
+    "sources": "https://github.com/gabrieljemail/VoidClient"
   },
 
   "icon": "assets/vulkanmod/vlogo.png",
 
   "environment": "client",
   "entrypoints": {
-    "client": [
-      "net.vulkanmod.Initializer"
-    ]
+    "client": ["net.vulkanmod.Initializer", "net.voidsmp.client.VoidClient"]
   },
-  "mixins": [
-    "vulkanmod.mixins.json"
-  ],
-  "accessWidener" : "vulkanmod.accesswidener",
+  "mixins": ["voidclient.mixins.json", "vulkanmod.mixins.json"],
+  "accessWidener": "vulkanmod.accesswidener",
 
   "depends": {
     "fabricloader": ">=0.14.14",

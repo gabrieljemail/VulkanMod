@@ -63,7 +63,7 @@ vec3 getVertexPosition() {
     const vec3 baseOffset = bitfieldExtract(ivec3(encOffset) >> ivec3(0, 16, 8), 0, 8);
 
     #ifdef COMPRESSED_VERTEX
-        return fma(Position.xyz, POSITION_INV, ModelOffset + baseOffset);
+        return fma(vec3(Position.xyz), POSITION_INV, ModelOffset + baseOffset);
     #else
         return Position.xyz + ModelOffset + baseOffset;
     #endif
@@ -78,7 +78,8 @@ void main() {
 
     const vec4 Color = unpackUnorm4x8(PackedColor);
 
-    vertexColor = Color * sample_lightmap2(Sampler2, Position.a);
+    // Cast Position.a explicitly to uint to satisfy strict compilers (e.g. Intel UHD drivers)
+    vertexColor = Color * sample_lightmap2(Sampler2, uint(Position.a));
 //    vertexColor = Color * sample_lightmap(Sampler2, UV2);
 
     fadeFactor = SectionFadeFactors[gl_InstanceIndex >> 2][gl_InstanceIndex & 3];

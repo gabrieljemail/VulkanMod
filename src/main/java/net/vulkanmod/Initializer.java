@@ -21,7 +21,7 @@ public class Initializer implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		VERSION = FabricLoader.getInstance()
-				.getModContainer("vulkanmod")
+				.getModContainer("void-client")
 				.get()
 				.getMetadata()
 				.getVersion().getFriendlyString();
