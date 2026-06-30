@@ -1,6 +1,7 @@
 package net.vulkanmod.render.chunk.build.task;
 
 import com.google.common.collect.Queues;
+import net.minecraft.client.Minecraft;
 import net.vulkanmod.render.chunk.ChunkArea;
 import net.vulkanmod.render.chunk.ChunkAreaManager;
 import net.vulkanmod.render.chunk.RenderSection;
@@ -32,8 +33,20 @@ public class TaskDispatcher {
     }
 
     public void createThreads() {
-        int n = Math.max((Runtime.getRuntime().availableProcessors() - 1) / 2, 1);
-        createThreads(n);
+        createThreads(autoThreadCount());
+    }
+
+    // [VoidClient] Context-aware builder-thread count. Stock VulkanMod uses a
+    // flat (cores-1)/2, which gives just 1 builder on a 4-thread CPU. Instead:
+    // always reserve a core for the render/main thread, and reserve another for
+    // the integrated server *only in singleplayer* — on a multiplayer server it
+    // doesn't run locally, so those cores are free to mesh chunks. Then use half
+    // the remaining cores, so the render thread is never starved.
+    private static int autoThreadCount() {
+        int processors = Runtime.getRuntime().availableProcessors();
+        boolean integratedServer = Minecraft.getInstance().hasSingleplayerServer();
+        int reserved = 1 + (integratedServer ? 1 : 0);
+        return Math.max(1, (processors - reserved + 1) / 2);
     }
 
     public void createThreads(int n) {
@@ -49,9 +62,9 @@ public class TaskDispatcher {
             }
         }
 
-        // Auto select thread count
+        // Auto select thread count (0 = auto from the config slider)
         if (n == 0) {
-            n = Math.max((Runtime.getRuntime().availableProcessors() - 1) / 2, 1);
+            n = autoThreadCount();
         }
 
         this.threads = new Thread[n];
@@ -61,7 +74,9 @@ public class TaskDispatcher {
             BuilderResources builderResources = new BuilderResources();
             Thread thread = new Thread(() -> runTaskThread(builderResources),
                                        "Builder-" + i);
-            thread.setPriority(Thread.NORM_PRIORITY);
+            // Just below normal so meshing yields to the render/main thread under
+            // contention (best-effort; some OSes ignore Java thread priorities).
+            thread.setPriority(Thread.NORM_PRIORITY - 1);
 
             this.threads[i] = thread;
             this.resources[i] = builderResources;

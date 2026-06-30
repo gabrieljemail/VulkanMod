@@ -12,6 +12,25 @@ base {
 
 loom {
 	accessWidenerPath = file("src/main/resources/vulkanmod.accesswidener")
+
+	runs {
+		client {
+			// Auto-join a server on launch so rendering tests aren't skewed by
+			// the integrated server sharing the CPU (and to better match real
+			// multiplayer use). Set `void_smp_address` (host or host:port) in
+			// gradle.properties or ~/.gradle/gradle.properties, or pass
+			// -Pvoid_smp_address=host:port. Unset = normal singleplayer client.
+			if (project.hasProperty('void_smp_address')) {
+				programArgs '--quickPlayMultiplayer', project.void_smp_address
+			}
+			// Dev username for offline-mode servers — set `void_smp_username` so
+			// you join as your real account instead of the default dev name (which
+			// is how you ended up stuck on a wrong, hardcore character).
+			if (project.hasProperty('void_smp_username')) {
+				programArgs '--username', project.void_smp_username
+			}
+		}
+	}
 }
 
 repositories {

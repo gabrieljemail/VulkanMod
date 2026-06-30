@@ -29,11 +29,14 @@ import org.lwjgl.vulkan.*;
 
 public class SwapChain extends Framebuffer {
 
-    // Necessary until tearing-control-unstable-v1 is fully implemented on all GPU Drivers for Wayland
-    // (As Immediate Mode (and by extension Screen tearing) doesn't exist on some Wayland installations currently)
+    // Uncapped present preference. MAILBOX first: it's uncapped like IMMEDIATE
+    // but triple-buffered, so no tearing and much steadier frame pacing — and
+    // it's more widely supported than IMMEDIATE (which is missing on some
+    // Wayland setups). IMMEDIATE stays as the fallback for drivers without
+    // MAILBOX; checkPresentMode falls back to FIFO if neither exists.
     private static final int defUncappedMode = checkPresentMode(
-        VK_PRESENT_MODE_IMMEDIATE_KHR,
-        VK_PRESENT_MODE_MAILBOX_KHR
+        VK_PRESENT_MODE_MAILBOX_KHR,
+        VK_PRESENT_MODE_IMMEDIATE_KHR
     );
 
     private final Long2ReferenceOpenHashMap<long[]> FBO_map =

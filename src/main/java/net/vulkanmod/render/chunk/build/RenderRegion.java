@@ -136,8 +136,16 @@ public class RenderRegion implements BlockAndTintGetter {
         return blockStateGetter.apply(blockPos);
     }
 
+    public BlockState getBlockStateFast(int relX, int relY, int relZ) {
+        return blockData[getBlockIdx(relX + BOUNDARY_BLOCK_WIDTH, relY + BOUNDARY_BLOCK_WIDTH, relZ + BOUNDARY_BLOCK_WIDTH)];
+    }
+
     public FluidState getFluidState(BlockPos blockPos) {
         return this.getBlockState(blockPos).getFluidState();
+    }
+
+    public FluidState getFluidStateFast(int relX, int relY, int relZ) {
+        return getBlockStateFast(relX, relY, relZ).getFluidState();
     }
 
     public float getShade(Direction direction, boolean bl) {

@@ -6,8 +6,10 @@
   "mixins": [],
   "client": [
     "ClientBrandMixin",
+    "FpsLimiterMixin",
     "LightColorMixin",
     "LightDataAccessMixin",
+    "MotionBlurGuiMixin",
     "SplashOverlayMixin",
     "WindowTitleMixin"
   ],

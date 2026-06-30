@@ -67,7 +67,9 @@ If you just scrolled past all of that, I don't blame you. But be careful before 
 
 import net.fabricmc.api.ClientModInitializer;
 import net.voidsmp.client.addons.AddonRegistry;
+import net.voidsmp.client.addons.ChunkRes;
 import net.voidsmp.client.addons.Fullbright;
+import net.voidsmp.client.addons.MotionBlur;
 import net.voidsmp.client.addons.TestAddon;
 import net.voidsmp.client.clickgui.ClickGUI;
 
@@ -80,5 +82,7 @@ public class VoidClient implements ClientModInitializer {
         // Register add-ons. (TestAddon is temporary until real ones land.)
         AddonRegistry.register(new TestAddon());
         AddonRegistry.register(new Fullbright());
+        AddonRegistry.register(new MotionBlur());
+        AddonRegistry.register(new ChunkRes());
     }
 }

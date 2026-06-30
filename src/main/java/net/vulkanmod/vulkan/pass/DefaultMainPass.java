@@ -3,12 +3,14 @@ package net.vulkanmod.vulkan.pass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.textures.GpuTextureView;
+import net.voidsmp.client.addons.MotionBlur;
 import net.vulkanmod.render.engine.VkGpuDevice;
 import net.vulkanmod.render.engine.VkGpuTexture;
 import net.vulkanmod.vulkan.Renderer;
 import net.vulkanmod.vulkan.framebuffer.Framebuffer;
 import net.vulkanmod.vulkan.framebuffer.RenderPass;
 import net.vulkanmod.vulkan.framebuffer.SwapChain;
+import net.vulkanmod.vulkan.texture.ImageUtil;
 import net.vulkanmod.vulkan.texture.VTextureSelector;
 import net.vulkanmod.vulkan.texture.VulkanImage;
 import org.lwjgl.system.MemoryStack;
@@ -35,6 +37,11 @@ public class DefaultMainPass implements MainPass {
     private GpuTextureView[] colorAttachmentTextureViews;
     IntSupplier imageIdxSupplier;
     private GpuTexture depthAttachmentTexture;
+
+    // [VoidClient] Motion blur. Cache one intermediate image per distinct (w,h)
+    // so changing blur axis/strength between frames never reallocates (that
+    // reallocation caused the stutter while flicking). Freed on resize/cleanup.
+    private final java.util.HashMap<Long, VulkanImage> motionBlurImages = new java.util.HashMap<>();
 
     DefaultMainPass() {
         createResources();
@@ -116,13 +123,81 @@ public class DefaultMainPass implements MainPass {
 
     @Override
     public void cleanUp() {
+        freeMotionBlurHistory();
         this.mainRenderPass.cleanUp();
         this.auxRenderPass.cleanUp();
     }
 
     @Override
     public void onResize() {
+        freeMotionBlurHistory();
         createResources();
+    }
+
+    // [VoidClient] One extra fullscreen blit of the finished frame into an
+    // offscreen image. Purely to measure the GPU cost of a single fullscreen
+    // pass on this hardware — the result is never read back or displayed, and
+    // the swapchain image is only used as a blit source (read-only), so the
+    // visible frame is unchanged. Toggling Motion Blur on/off and watching the
+    // FPS delta gives the real cost ceiling for a single-pass post effect.
+    // Shader-free directional blur (v2): downsample the finished frame along ONE
+    // axis into a narrow image with linear filtering, then upsample back — the
+    // bilinear averaging along that axis is a directional smear. The axis and
+    // strength come from camera rotation (MotionBlur), so it blurs horizontally
+    // while turning and vertically while looking up/down, only while moving.
+    // Arbitrary per-pixel angles still need a fragment shader (v3); this reuses
+    // the proven blit path. NB: still runs at the present hook, so it also
+    // smears the HUD — fixing that needs an earlier, pre-GUI hook point.
+    private static final int MOTION_BLUR_MAX_DOWNSCALE = 8;
+    private static final float MOTION_BLUR_THRESHOLD = 0.04f;
+
+    @Override
+    public void applyMotionBlur() {
+        if (!MotionBlur.ENABLED || MotionBlur.STRENGTH <= MOTION_BLUR_THRESHOLD) {
+            return; // disabled, or not moving enough to bother
+        }
+        if (net.minecraft.client.Minecraft.getInstance().screen != null) {
+            return; // not in a menu
+        }
+        if (this.mainFramebuffer != Renderer.getInstance().getSwapChain()) {
+            return;
+        }
+        VulkanImage color = this.mainFramebuffer.getColorAttachment();
+        int fw = this.mainFramebuffer.getWidth();
+        int fh = this.mainFramebuffer.getHeight();
+
+        // Stronger turn -> more downscale along the blur axis -> longer smear.
+        // Quantised so the intermediate image isn't reallocated every frame.
+        int level = 2 + Math.round(MotionBlur.STRENGTH * (MOTION_BLUR_MAX_DOWNSCALE - 2));
+        int w = MotionBlur.HORIZONTAL ? Math.max(1, fw / level) : fw;
+        int h = MotionBlur.HORIZONTAL ? fh : Math.max(1, fh / level);
+
+        VulkanImage history = motionBlurImage(w, h);
+        ImageUtil.blitFramebuffer(color, history, VK_FILTER_LINEAR); // downsample along axis
+        ImageUtil.blitFramebuffer(history, color, VK_FILTER_LINEAR); // upsample -> directional smear
+    }
+
+    private VulkanImage motionBlurImage(int width, int height) {
+        long key = (((long) width) << 32) | (height & 0xFFFFFFFFL);
+        VulkanImage image = this.motionBlurImages.get(key);
+        if (image == null) {
+            // Builder's default RGBA8, not the swapchain's: BGRA swapchains
+            // (Intel, format 44) aren't handled by the Builder. vkCmdBlitImage
+            // converts formats and this image is never displayed, so channel
+            // order doesn't matter.
+            image = new VulkanImage.Builder(width, height)
+                .setName("VoidClient Motion Blur " + width + "x" + height)
+                .createVulkanImage();
+            this.motionBlurImages.put(key, image);
+        }
+        return image;
+    }
+
+    private void freeMotionBlurHistory() {
+        for (VulkanImage image : this.motionBlurImages.values()) {
+            image.free();
+        }
+        this.motionBlurImages.clear();
     }
 
     public void rebindMainTarget() {

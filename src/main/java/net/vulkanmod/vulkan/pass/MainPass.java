@@ -24,6 +24,10 @@ public interface MainPass {
 
     default void bindAsTexture() {}
 
+    // [VoidClient] Apply the world-layer motion blur. Called from a Gui.render
+    // HEAD hook — after the world, before the HUD — so the HUD stays sharp.
+    default void applyMotionBlur() {}
+
     default Framebuffer getMainFramebuffer() {
         return null;
     }

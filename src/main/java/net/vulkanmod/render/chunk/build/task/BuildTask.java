@@ -102,9 +102,12 @@ public class BuildTask extends ChunkTask {
         for (int y = 0; y < 16; ++y) {
             for (int z = 0; z < 16; ++z) {
                 for (int x = 0; x < 16; ++x) {
+                    BlockState blockState = this.region.getBlockStateFast(x, y, z);
+                    
+                    if (blockState.isAir()) continue;
+                    
                     blockPos.set(section.xOffset() + x, section.yOffset() + y, section.zOffset() + z);
 
-                    BlockState blockState = this.region.getBlockState(blockPos);
                     if (blockState.isSolidRender()) {
                         visGraph.setOpaque(blockPos);
                     }
@@ -122,7 +125,7 @@ public class BuildTask extends ChunkTask {
                     }
 
                     if (blockState.getRenderShape() == RenderShape.MODEL) {
-                        pos.set(blockPos.getX() & 15, blockPos.getY() & 15, blockPos.getZ() & 15);
+                        pos.set(x, y, z);
                         blockRenderer.renderBlock(blockState, blockPos, pos);
                     }
                 }
