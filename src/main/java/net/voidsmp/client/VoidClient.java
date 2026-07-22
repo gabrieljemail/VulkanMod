@@ -69,6 +69,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
 import net.voidsmp.client.addons.AddonRegistry;
 import net.voidsmp.client.addons.ChunkRes;
+import net.voidsmp.client.addons.FastInputAddon;
 import net.voidsmp.client.addons.Fullbright;
 import net.voidsmp.client.addons.MotionBlur;
 import net.voidsmp.client.addons.TestAddon;
@@ -88,5 +89,6 @@ public class VoidClient implements ClientModInitializer {
         AddonRegistry.register(new Fullbright());
         AddonRegistry.register(new MotionBlur());
         AddonRegistry.register(new ChunkRes());
+        AddonRegistry.register(FastInputAddon.INSTANCE);
     }
 }
