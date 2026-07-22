@@ -2,6 +2,7 @@ package net.voidsmp.client.clickgui;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractSliderButton;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.voidsmp.client.addons.models.Addon;
@@ -42,6 +43,8 @@ public class AddonConfigScreen extends Screen {
 
             if (entry.type == ConfigEntryType.BOOLEAN) {
                 addRenderableWidget(booleanWidget(x, y, entry));
+            } else if (entry.type == ConfigEntryType.STRING) {
+                addRenderableWidget(stringWidget(x, y, entry));
             } else {
                 addRenderableWidget(rangeWidget(x, y, entry));
             }
@@ -77,6 +80,15 @@ public class AddonConfigScreen extends Screen {
                 numEntry.set(convert(entry.type, value));
             }
         };
+    }
+
+    @SuppressWarnings("unchecked")
+    private EditBox stringWidget(int x, int y, ConfigEntry<?> entry) {
+        ConfigEntry<String> stringEntry = (ConfigEntry<String>) entry;
+        EditBox editBox = new EditBox(this.font, x, y, ROW_WIDTH, ROW_HEIGHT, label(entry, stringEntry.get()));
+        editBox.setValue(stringEntry.get() != null ? stringEntry.get() : "");
+        editBox.setResponder(stringEntry::set);
+        return editBox;
     }
 
     private static Component label(ConfigEntry<?> entry, String valueText) {
