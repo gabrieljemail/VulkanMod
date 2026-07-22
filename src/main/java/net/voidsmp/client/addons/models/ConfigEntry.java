@@ -63,6 +63,19 @@ public class ConfigEntry<T> {
         return this;
     }
 
+    /**
+     * Registers a change listener without firing it immediately (unlike
+     * {@link #onChange}), returning a handle that removes it. Meant for code
+     * that attaches/detaches listeners across a lifecycle it doesn't fully
+     * control — e.g. config persistence — where onChange's fire-on-attach
+     * behavior would misfire a write, and where accumulating listeners with
+     * no way to remove them would leak.
+     */
+    public AutoCloseable addListener(Consumer<T> callback) {
+        listeners.add(callback);
+        return () -> listeners.remove(callback);
+    }
+
     public ConfigEntry<T> describe(String friendlyName, String description) {
         this.friendlyName = friendlyName;
         this.description = description;
