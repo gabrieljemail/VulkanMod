@@ -55,6 +55,7 @@ public abstract class SamplerManager {
             .setFiltering(filter, filter, mipmapMode)
             .setMaxLod(maxLod)
             .setMipLodBias(mipLodBias)
+            .setReductionMode(-1)
             .createSamplerInfo();
 
         if (anisotropy) {
@@ -64,6 +65,7 @@ public abstract class SamplerManager {
                 .setMaxLod(maxLod)
                 .setMipLodBias(mipLodBias)
                 .setAnisotropy(maxAnisotropy)
+                .setReductionMode(-1)
                 .createSamplerInfo();
         }
 
