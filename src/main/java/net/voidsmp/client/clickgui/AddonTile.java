@@ -1,16 +1,21 @@
 package net.voidsmp.client.clickgui;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.InputWithModifiers;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.network.chat.Component;
 import net.voidsmp.client.addons.models.Addon;
+import org.lwjgl.glfw.GLFW;
 
 /**
- * Clickable wrapper around an {@link Addon}'s tile. Clicking toggles the
- * add-on on/off; the visuals are delegated to {@link Addon#renderTile} so an
- * add-on stays in control of how its own tile looks.
+ * Clickable wrapper around an {@link Addon}'s tile. Left-click toggles the
+ * add-on on/off; right-click opens its config screen. The visuals are
+ * delegated to {@link Addon#renderTile} so an add-on stays in control of how
+ * its own tile looks.
  */
 public class AddonTile extends AbstractButton {
 
@@ -22,8 +27,18 @@ public class AddonTile extends AbstractButton {
     }
 
     @Override
+    protected boolean isValidClickButton(MouseButtonInfo info) {
+        return info.button() == GLFW.GLFW_MOUSE_BUTTON_LEFT || info.button() == GLFW.GLFW_MOUSE_BUTTON_RIGHT;
+    }
+
+    @Override
     public void onPress(InputWithModifiers input) {
-        addon.toggle();
+        if (input instanceof MouseButtonEvent event && event.button() == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
+            Minecraft minecraft = Minecraft.getInstance();
+            minecraft.setScreen(new AddonConfigScreen(addon, minecraft.screen));
+        } else {
+            addon.toggle();
+        }
     }
 
     @Override

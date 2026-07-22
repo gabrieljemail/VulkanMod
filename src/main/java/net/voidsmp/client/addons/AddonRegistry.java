@@ -1,6 +1,8 @@
 package net.voidsmp.client.addons;
 
+import net.voidsmp.client.addons.config.AddonConfigStorage;
 import net.voidsmp.client.addons.models.Addon;
+import net.voidsmp.client.addons.models.ConfigEntry;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -17,8 +19,22 @@ public final class AddonRegistry {
 
     public static void register(Addon addon) {
         ADDONS.add(addon);
+
+        AddonConfigStorage.load(addon);
+        for (ConfigEntry<?> entry : addon.config) {
+            // Registry owns this listener, not the addon — the addon never
+            // holds a reference to anything persistence-related, so there's
+            // nothing for it to leak. Add-ons are only ever registered once
+            // (constructed at client init, never re-instantiated), so this
+            // never needs to be detached.
+            entry.addListener(v -> AddonConfigStorage.save(addon));
+        }
+
         // TODO: invoke addon.onRegister(...) once the lifecycle hook's contract
-        // is finalised (it's protected, and its semantics land with ConfigEntry).
+        // is finalised. It's protected on Addon (models package) and
+        // AddonRegistry lives in a different package and isn't a subclass, so
+        // it can't be called from here as-is without widening visibility —
+        // out of scope for this task.
     }
 
     public static List<Addon> all() {

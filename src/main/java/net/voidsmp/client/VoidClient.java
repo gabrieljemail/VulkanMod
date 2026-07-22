@@ -66,11 +66,13 @@ If you just scrolled past all of that, I don't blame you. But be careful before 
 */
 
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.loader.api.FabricLoader;
 import net.voidsmp.client.addons.AddonRegistry;
 import net.voidsmp.client.addons.ChunkRes;
 import net.voidsmp.client.addons.Fullbright;
 import net.voidsmp.client.addons.MotionBlur;
 import net.voidsmp.client.addons.TestAddon;
+import net.voidsmp.client.addons.config.AddonConfigStorage;
 import net.voidsmp.client.clickgui.ClickGUI;
 
 public class VoidClient implements ClientModInitializer {
@@ -78,6 +80,8 @@ public class VoidClient implements ClientModInitializer {
     public void onInitializeClient() {
         // Constructing the ClickGUI registers its keybinding and tick handler.
         new ClickGUI();
+
+        AddonConfigStorage.setConfigDir(FabricLoader.getInstance().getConfigDir().resolve("VoidAddons"));
 
         // Register add-ons. (TestAddon is temporary until real ones land.)
         AddonRegistry.register(new TestAddon());
