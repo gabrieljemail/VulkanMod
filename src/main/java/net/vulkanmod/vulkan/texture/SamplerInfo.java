@@ -12,6 +12,7 @@ public class SamplerInfo {
     final int encodedState;
     final int maxLod;
     final int maxAnisotropy;
+    final float mipLodBias;
 
     public SamplerInfo() {
         this(VK_SAMPLER_ADDRESS_MODE_REPEAT, VK_SAMPLER_ADDRESS_MODE_REPEAT,
@@ -25,17 +26,18 @@ public class SamplerInfo {
                        int reductionMode)
     {
         this(addressModeU, addressModeV, minFilter, magFilter, mipmapMode, maxLod,
-             anisotropy, maxAnisotropy, false, 0, reductionMode);
+             anisotropy, maxAnisotropy, false, 0, reductionMode, 0.0f);
     }
 
     public SamplerInfo(int addressModeU, int addressModeV,
                        int minFilter, int magFilter, int mipmapMode,
                        float maxLod, boolean anisotropy, float maxAnisotropy,
                        boolean compare, int compareOp,
-                       int reductionMode)
+                       int reductionMode, float mipLodBias)
     {
         this.maxLod = (int) maxLod;
         this.maxAnisotropy = (int) maxAnisotropy;
+        this.mipLodBias = mipLodBias;
 
         this.encodedState = getEncodedState(addressModeU, addressModeV, minFilter, magFilter, mipmapMode,
                                             anisotropy, compare, compareOp, reductionMode);
@@ -89,12 +91,17 @@ public class SamplerInfo {
         return maxLod;
     }
 
+    public float getMipLodBias() {
+        return mipLodBias;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
 
         SamplerInfo samplerInfo = (SamplerInfo) o;
-        return maxLod == samplerInfo.maxLod && maxAnisotropy == samplerInfo.maxAnisotropy && encodedState == samplerInfo.encodedState;
+        return maxLod == samplerInfo.maxLod && maxAnisotropy == samplerInfo.maxAnisotropy
+            && Float.compare(mipLodBias, samplerInfo.mipLodBias) == 0 && encodedState == samplerInfo.encodedState;
     }
 
     @Override
@@ -102,6 +109,7 @@ public class SamplerInfo {
         int result = encodedState;
         result = 31 * result + maxLod;
         result = 31 * result + maxAnisotropy;
+        result = 31 * result + Float.hashCode(mipLodBias);
         return result;
     }
 
@@ -120,6 +128,7 @@ public class SamplerInfo {
         float maxLod = 0.0f;
         boolean anisotropy = false;
         float maxAnisotropy = 0.0f;
+        float mipLodBias = 0.0f;
 
         boolean compareEnabled = false;
         int compareOp = VK_COMPARE_OP_ALWAYS;
@@ -156,6 +165,12 @@ public class SamplerInfo {
             return this;
         }
 
+        public Builder setMipLodBias(float mipLodBias) {
+            this.mipLodBias = mipLodBias;
+
+            return this;
+        }
+
         public Builder setCompare(boolean enable, int compareOp) {
             this.compareEnabled = enable;
             this.compareOp = compareOp;
@@ -175,7 +190,7 @@ public class SamplerInfo {
                                    mipmapMode, maxLod,
                                    anisotropy, maxAnisotropy,
                                    compareEnabled, compareOp,
-                                   reductionMode);
+                                   reductionMode, mipLodBias);
         }
     }
 }

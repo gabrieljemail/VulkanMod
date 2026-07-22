@@ -31,6 +31,7 @@ public class Config {
     public boolean textureAnimations = true;
     public boolean vsyncFramePacing = true;
     public boolean hudCache = true;
+    public int mipLodBiasTenths = 0;
 
     public boolean directUploads = true;
     public boolean throttleFarRebuilds = true;

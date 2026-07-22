@@ -356,10 +356,11 @@ public class WorldRenderer {
         var texView = atlasTexture.getTextureView();
         boolean useAnisotropy = this.minecraft.options.textureFiltering().get() == TextureFilteringMethod.ANISOTROPIC;
         int maxAnisotropy = this.minecraft.options.maxAnisotropyValue();
+        float mipLodBias = Initializer.CONFIG.mipLodBiasTenths / 10.0f;
         var texture = (VkGpuTexture)texView.texture();
 
         if (this.terrainSampler == 0L) {
-            this.terrainSampler = SamplerManager.getSampler(true, true, texture.getVulkanImage().mipLevels - 1, useAnisotropy, maxAnisotropy);
+            this.terrainSampler = SamplerManager.getSampler(true, true, texture.getVulkanImage().mipLevels - 1, useAnisotropy, maxAnisotropy, mipLodBias);
         }
 
         texture.getVulkanImage().setSampler(this.terrainSampler);

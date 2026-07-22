@@ -45,6 +45,31 @@ public abstract class SamplerManager {
         return getSampler(addressMode, addressMode, filter, filter, mipmapMode, maxLod, anisotropy, maxAnisotropy, -1);
     }
 
+    public static long getSampler(boolean clamp, boolean linearFiltering, int maxLod, boolean anisotropy, int maxAnisotropy, float mipLodBias) {
+        int addressMode = clamp ? VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE : VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        int filter = linearFiltering ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
+        int mipmapMode = linearFiltering ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
+
+        SamplerInfo samplerInfo = SamplerInfo.builder()
+            .setAddressMode(addressMode)
+            .setFiltering(filter, filter, mipmapMode)
+            .setMaxLod(maxLod)
+            .setMipLodBias(mipLodBias)
+            .createSamplerInfo();
+
+        if (anisotropy) {
+            samplerInfo = SamplerInfo.builder()
+                .setAddressMode(addressMode)
+                .setFiltering(filter, filter, mipmapMode)
+                .setMaxLod(maxLod)
+                .setMipLodBias(mipLodBias)
+                .setAnisotropy(maxAnisotropy)
+                .createSamplerInfo();
+        }
+
+        return getSampler(samplerInfo);
+    }
+
     public static long getSampler(int addressModeU, int addressModeV,
                                   int minFilter, int magFilter, int mipmapMode, float maxLod,
                                   boolean anisotropy, float maxAnisotropy, int reductionMode)
@@ -95,7 +120,7 @@ public abstract class SamplerManager {
             samplerInfo.mipmapMode(sampler.getMipmapMode());
             samplerInfo.maxLod(sampler.getMaxLod());
             samplerInfo.minLod(0.0F);
-            samplerInfo.mipLodBias(0.0F);
+            samplerInfo.mipLodBias(sampler.getMipLodBias());
 
             // Reduction Mode
             if (sampler.hasReductionMode()) {

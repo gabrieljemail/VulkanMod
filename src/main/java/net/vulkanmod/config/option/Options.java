@@ -415,7 +415,16 @@ public abstract class Options {
                                 v -> config.hudCache = v,
                                 () -> config.hudCache)
                                 .setTooltip(v -> Component.translatable("vulkanmod.options.hudCache.tooltip"))
-                                .setImpact(PerformanceImpact.MEDIUM)
+                                .setImpact(PerformanceImpact.MEDIUM),
+                        new RangeOption(Component.translatable("vulkanmod.options.mipLodBias"),
+                                -10, 10, 1,
+                                v -> Component.literal(String.format("%.1f", v / 10.0)),
+                                value -> {
+                                    config.mipLodBiasTenths = value;
+                                    WorldRenderer.getInstance().resetSampler();
+                                },
+                                () -> config.mipLodBiasTenths)
+                                .setTooltip(v -> Component.translatable("vulkanmod.options.mipLodBias.tooltip"))
                 }),
                 new OptionBlock("", getPipelineOpts())
         };

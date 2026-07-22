@@ -44,6 +44,9 @@
   "vulkanmod.options.hudCache": "HUD Caching",
   "vulkanmod.options.hudCache.tooltip": "Reuses the previous frame's HUD vertex buffers when nothing on screen changed, skipping the per-frame GUI rebuild and upload. Animations keep playing; disable only if you see HUD glitches.",
 
+  "vulkanmod.options.mipLodBias": "Mip LOD Bias",
+  "vulkanmod.options.mipLodBias.tooltip": "Shifts which mip level distant terrain textures sample from. Negative sharpens (more shimmer at a distance); positive softens distant textures more (less aliasing, slightly less bandwidth).",
+
   "vulkanmod.options.directUploads": "Direct Buffer Uploads",
   "vulkanmod.options.directUploads.tooltip": "Writes vertex data straight into GPU-visible memory on integrated graphics (UMA), skipping the staging buffer copy and halving upload bandwidth. Has no effect on buffers that are not host-mappable. Disable if you suspect upload corruption.",
 
