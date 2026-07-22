@@ -37,16 +37,16 @@ The `next-optimization-pass.md` file referenced at the start of this session doe
 
 **Config entries**: `enabled` (base toggle), `pollRateHz` (slider, default 250, range 60–1000).
 
-**Problem being solved**: vanilla samples input once per 20Hz tick via GLFW callbacks queued and drained on the main loop. This add-on decouples sampling from tick rate.
+**Problem being solved**: keyboard state is sampled via GLFW callbacks but only *consumed* by movement/action logic once per 20Hz tick. This add-on decouples keyboard sampling from tick rate. (Mouse look was originally in scope too, but dropped — see below.)
 
-**Mouse look**: a poll loop (dedicated thread or per-frame hook, timed to `pollRateHz`) reads cursor delta directly and applies yaw/pitch to the camera immediately, independent of the tick. This is the primary latency win — same class of technique as raw-input camera code in other performance-oriented mods, and the input-side analog of what NVIDIA Reflex does on the frame-pacing side (not adopted directly — Reflex reorders GPU submission timing, which is a different, largely DX12/vendor-specific mechanism; the sample-rate approach here is portable to Vulkan/Intel without driver-specific hooks).
+**Correction made during design**: decompiled this Minecraft version's classes to verify the premise. `MouseHandler.handleAccumulatedMovement()` (which turns the camera) is called inside `Minecraft.runTick()` — the per-frame method — not inside `tick()`, the 20Hz method (confirmed via bytecode inspection: the call appears before `tick()`'s bytecode even begins in the class listing). So camera look **already runs every rendered frame in vanilla**, not at 20Hz — a dedicated mouse poll loop would be redundant (and risked double-applying movement). The actual multi-frame input delay the user observed turned out to be a swapchain frame-queue-depth issue, addressed separately in section D (Low Latency Mode).
 
-**Raw input correctness** (confirmed via investigation of decompiled MC 1.21.11 classes — `Window.updateRawMouseInput` exists in vanilla, independent of this fork): GLFW's cursor-pos callback without raw mode is backed by Windows' `WM_MOUSEMOVE`, which is OS-processed (pointer acceleration/ballistics, screen-edge clamping). `GLFW_RAW_MOUSE_MOTION` mode (active only while the cursor is grabbed) switches GLFW internally to Windows' Raw Input API (`RegisterRawInputDevices`/`WM_INPUT`), reading unprocessed relative deltas straight from the driver — no acceleration curve, no clamping. Polling the non-raw path faster is not a real latency win, just faster sampling of an already-smoothed signal.
+**Raw input correctness** (confirmed via investigation of decompiled MC 1.21.11 classes — `Window.updateRawMouseInput` exists in vanilla, independent of this fork): GLFW's cursor-pos callback without raw mode is backed by Windows' `WM_MOUSEMOVE`, which is OS-processed (pointer acceleration/ballistics, screen-edge clamping). `GLFW_RAW_MOUSE_MOTION` mode (active only while the cursor is grabbed) switches GLFW internally to Windows' Raw Input API (`RegisterRawInputDevices`/`WM_INPUT`), reading unprocessed relative deltas straight from the driver — no acceleration curve, no clamping.
 - On enable (while cursor is grabbed): call `glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE)` if `glfwRawMouseMotionSupported()` is true.
 - On disable: restore whatever vanilla's own "Raw Input" option was set to beforehand — don't permanently override the player's existing setting.
 - No effect on Wayland (relative motion is already delivered directly at the compositor level there — not a Windows ballistics problem).
 
-**Keyboard**: the same poll loop reads current key-down state via `glfwGetKey` each cycle and latches it into a shared snapshot (volatile/atomic). The 20Hz tick reads the freshest snapshot instead of vanilla's queued-since-last-tick callback events, removing up to one tick's worth (~50ms) of queuing latency. This does not increase movement/physics resolution — physics still runs at 20Hz — it only removes latency in *when* a keypress is seen by the next tick, addressing the kernel-vs-Minecraft timing gap observed (~150ms).
+**Keyboard**: a per-frame poll (hooked into `Minecraft.runTick`, gated by an accumulator so it only actually samples at `pollRateHz` even though `runTick` fires every frame) reads current key-down state via `glfwGetKey` each cycle and latches it into a shared snapshot. The 20Hz tick reads the freshest snapshot instead of vanilla's queued-since-last-tick callback events, removing up to one tick's worth (~50ms) of queuing latency. This does not increase movement/physics resolution — physics still runs at 20Hz — it only removes latency in *when* a keypress is seen by the next tick, addressing part of the kernel-vs-Minecraft timing gap observed (the full ~150ms the user measured likely has other contributors too, e.g. USB polling interval, not something software-side latching alone fixes).
 
 **Fallback**: when disabled, input handling is untouched vanilla GLFW callback path — no permanent hijacking.
 
@@ -54,16 +54,26 @@ The `next-optimization-pass.md` file referenced at the start of this session doe
 
 ## C. Texture LOD (mipmapped atlas + sampler LOD)
 
-**Existing state**: mip chains are already generated (`ImageUtil.generateMipmaps`, wired via `glGenerateMipmap` mixin path). `SamplerManager.java` currently hardcodes `mipLodBias(0.0F)` and does not enable anisotropic filtering; `SamplerInfo`'s packed cache key has no bias/anisotropy fields. Before implementation, double-check `SamplerManager`/`SamplerInfo` don't clamp `maxLod` to 0 anywhere, which would force full-resolution sampling regardless of bias settings.
+**Existing state**: mip chains are already generated (`ImageUtil.generateMipmaps`, wired via `glGenerateMipmap` mixin path). **Correction made during design**: anisotropic filtering is *not* actually missing — it's already fully implemented via vanilla's own "Texture Filtering" / "Anisotropic Filtering" settings (`Options.java:201-252`, `TextureFilteringMethod` enum), already wired through to the block atlas sampler at `WorldRenderer.java:357-362` (`useAnisotropy`/`maxAnisotropy` read from `minecraft.options`, passed into `SamplerManager.getSampler(...)`), with a working cache-invalidation path (`WorldRenderer.resetSampler()`, called when the setting changes). The only genuine gap is `mipLodBias`: `SamplerManager.java:98` hardcodes `mipLodBias(0.0F)`, and `SamplerInfo`'s packed cache key ([SamplerInfo.java:12-14](src/main/java/net/vulkanmod/vulkan/texture/SamplerInfo.java:12)) has no bias field at all. (There's also an unused `SamplerManager.MIP_BIAS = -0.5f` constant at line 32 — dead code, not wired to anything; leave it or remove it, don't repurpose it since -0.5 isn't necessarily the right default.)
 
 **Fix**:
-- Extend `SamplerInfo`'s cache key encoding with `mipLodBias` and `anisotropyLevel` fields so biased/anisotropic samplers get distinct cache entries.
-- Wire real values into `VkSamplerCreateInfo` in `SamplerManager`: `mipLodBias(config value)`; enable `anisotropyEnable` + `maxAnisotropy(config value)` when `VkPhysicalDeviceFeatures.samplerAnisotropy` is supported (present on Gen9).
+- Extend `SamplerInfo`'s cache key (the `encodedState`/fields used in `equals`/`hashCode`) with a `mipLodBias` field so biased samplers get distinct cache entries instead of colliding with the existing default-bias sampler.
+- Thread `mipLodBias` through `SamplerManager.getSampler(...)`'s overloads down to `createTextureSampler`, replacing the hardcoded `samplerInfo.mipLodBias(0.0F)` at line 98 with the real value.
+- In `WorldRenderer.java`, read the new `Config.mipLodBiasTenths` value alongside the existing `useAnisotropy`/`maxAnisotropy` reads (lines 357-358), pass it into the `getSampler(...)` call at line 362, and call `resetSampler()` when the setting changes (reusing the exact invalidation pattern already used for the anisotropy options) so the slider takes effect live instead of requiring a restart.
 - No manual per-chunk/per-section distance computation needed — GPU screen-space-derivative LOD selection already picks lower mips at distance automatically once the sampler is configured correctly; this fix corrects sampler config, it doesn't add new distance logic.
 
-**Settings** (Optimizations page, alongside existing `hudCache`/`throttleFarRebuilds` etc):
-- **Mip LOD Bias**: slider, range -1.0 to +1.0, default 0.0. Negative sharpens (more shimmer), positive softens distant textures more (less aliasing, marginal bandwidth savings).
-- **Anisotropic Filtering**: discrete steps 0/2x/4x/8x/16x, default 4x. Primarily helps textures viewed at grazing angles (floors/paths receding into distance).
+**Settings** (Optimizations page, alongside existing `hudCache`/`throttleFarRebuilds` etc — anisotropic filtering already has its own setting under vanilla's Graphics page and needs no new UI):
+- **Mip LOD Bias**: `RangeOption` is integer-only (`RangeOption.java:12`), so store as `mipLodBiasTenths` (int, range -10 to +10, default 0), display-translated as tenths (e.g. `-5` → "-0.5"), divided by 10.0f before use as the actual float bias. Negative sharpens (more shimmer), positive softens distant textures more (less aliasing, marginal bandwidth savings).
+
+---
+
+## D. Low Latency Mode (video setting)
+
+**Root cause identified during design** (supersedes the mouse-poll-loop idea in section B, which was dropped after confirming vanilla already turns the camera every rendered frame, inside `Minecraft.runTick`, not at 20Hz): the actual source of the multi-frame input-to-photon delay is `Config.frameQueueSize` (default 2, range 2-5 in settings — [Options.java:475](src/main/java/net/vulkanmod/config/option/Options.java:475)), which lets the CPU record/submit up to N frames ahead of what the GPU has presented. A fresh camera angle is correct the instant it's computed, but the frame carrying it can sit queued for up to `frameQueueSize` frames before it reaches the screen. This is the same class of problem NVIDIA Reflex addresses, and matches how Ixeris achieves lower latency (minimizing render-ahead queue at the cost of CPU idle time / spin-polling).
+
+**Fix**: add a `lowLatencyMode` boolean to `Config`. When enabled, it forces the effective frame queue depth to 1 (reusing the existing `framesNum`-generic fence/semaphore/command-buffer machinery in `Renderer.java`, which already live-resizes via `Renderer.scheduleSwapChainUpdate()` when `frameQueueSize` changes — no new synchronization logic needed) instead of whatever the Frame Queue slider is set to.
+
+**Settings**: a `SwitchOption` "Low Latency Mode" placed directly next to the existing Frame Queue `RangeOption` (same `OptionBlock` in `getOtherOpts()`/wherever the Frame Queue slider currently lives — [Options.java:475-482](src/main/java/net/vulkanmod/config/option/Options.java:475)). When enabled, the Frame Queue slider is disabled (greyed via `setActivationFn`, same pattern already used for `maxAnisotropyOption`/`farRebuildBudgetOption` elsewhere in this file) since it's overridden. Default **off** (opt-in), with a tooltip explaining the tradeoff: lower input latency, at the cost of possible stutter during CPU-heavy frames (chunk rebuild bursts, GC pauses) since there's no longer a queued frame to absorb them.
 
 ---
 
@@ -71,5 +81,5 @@ The `next-optimization-pass.md` file referenced at the start of this session doe
 
 - `next-optimization-pass.md` content (file lost, explicitly dropped by user this session).
 - Manual/non-standard texture LOD (per-chunk distance-bucketed bias) — standard sampler-driven approach was chosen instead.
-- Reflex-style GPU frame-pacing/submission reordering — sample-rate approach chosen instead.
+- A dedicated mouse poll loop for `FastInput` — dropped after confirming vanilla already turns the camera every rendered frame (`runTick`, not `tick`); Low Latency Mode (section D) addresses the actual observed delay instead.
 - Per-add-on custom config screen classes — generic auto-built screen chosen instead.
