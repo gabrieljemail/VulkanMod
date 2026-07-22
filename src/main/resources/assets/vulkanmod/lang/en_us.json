@@ -41,7 +41,25 @@
   "vulkanmod.options.indirectDraw": "Indirect Draw",
   "vulkanmod.options.indirectDraw.tooltip": "Reduces CPU overhead but might increase GPU overhead.",
 
+  "vulkanmod.options.hudCache": "HUD Caching",
+  "vulkanmod.options.hudCache.tooltip": "Reuses the previous frame's HUD vertex buffers when nothing on screen changed, skipping the per-frame GUI rebuild and upload. Animations keep playing; disable only if you see HUD glitches.",
+
+  "vulkanmod.options.directUploads": "Direct Buffer Uploads",
+  "vulkanmod.options.directUploads.tooltip": "Writes vertex data straight into GPU-visible memory on integrated graphics (UMA), skipping the staging buffer copy and halving upload bandwidth. Has no effect on buffers that are not host-mappable. Disable if you suspect upload corruption.",
+
+  "vulkanmod.options.throttleFarRebuilds": "Throttle Far Rebuilds",
+  "vulkanmod.options.throttleFarRebuilds.tooltip": "Limits how many distant chunk sections are rebuilt per frame, so bursts of far-away updates (lighting, worldgen) can't stall rebuilds right in front of you. Deferred sections are rebuilt on later frames, closest first.",
+
+  "vulkanmod.options.maxFarRebuilds": "Far Rebuild Budget",
+  "vulkanmod.options.maxFarRebuilds.tooltip": "Maximum distant chunk sections scheduled for rebuild each frame. Lower values smooth frametimes during heavy world updates; higher values make far terrain changes appear sooner.",
+
+  "vulkanmod.options.nearRebuildDistance": "Near Rebuild Distance",
+  "vulkanmod.options.nearRebuildDistance.tooltip": "Sections within this distance (in blocks) are always rebuilt immediately and never throttled.",
+
   "vulkanmod.options.refreshRate": "Fullscreen Refresh Rate",
+
+  "vulkanmod.options.vsyncFramePacing": "VSync Frame Pacing",
+  "vulkanmod.options.vsyncFramePacing.tooltip": "Paces the CPU to the display refresh rate while VSync is on, preventing the render thread from stalling at unpredictable points. Smooths frame delivery and reduces input lag.",
 
   "vulkanmod.options.uniqueOpaqueLayer": "Unique opaque layer",
   "vulkanmod.options.uniqueOpaqueLayer.tooltip": "Use a unique render layer for opaque terrain to improve performance.",

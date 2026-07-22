@@ -19,6 +19,9 @@ public class Fullbright extends Addon {
     // flag instead of a registry lookup.
     public static boolean ENABLED = false;
 
+    // Gamma value restored when the add-on is turned back off.
+    private double previousGamma;
+
     public Fullbright() {
         this.id = "voidclient:fullbright";
         this.name = "Fullbright";
@@ -30,10 +33,18 @@ public class Fullbright extends Addon {
         super.setEnabled(enabled);
         ENABLED = enabled;
 
+        Minecraft mc = Minecraft.getInstance();
+
+        if (enabled) {
+            this.previousGamma = mc.options.gamma().get();
+            mc.options.gamma().set(15.0);
+        } else {
+            mc.options.gamma().set(this.previousGamma);
+        }
+
         // Terrain light is baked into chunk meshes, so existing chunks must be
         // re-meshed for the change to show. (Runs on the render thread — toggles
         // come from the ClickGUI click handler.)
-        Minecraft mc = Minecraft.getInstance();
         if (mc.levelRenderer != null) {
             mc.levelRenderer.allChanged();
         }

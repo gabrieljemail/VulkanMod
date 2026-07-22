@@ -13,6 +13,7 @@ import net.vulkanmod.config.video.WindowMode;
 import net.vulkanmod.vulkan.Renderer;
 import net.vulkanmod.vulkan.VRenderSystem;
 import net.vulkanmod.vulkan.Vulkan;
+import net.vulkanmod.vulkan.util.FramePacer;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
@@ -100,6 +101,10 @@ public abstract class WindowMixin {
     @Overwrite
     public void updateDisplay(@Nullable TracyFrameCapture tracyFrameCapture) {
         RenderSystem.flipFrame((Window) ((Object)this), tracyFrameCapture);
+
+        if (this.vsync && Initializer.CONFIG.vsyncFramePacing) {
+            FramePacer.pace(this.handle);
+        }
 
         if (Options.fullscreenDirty) {
             Options.fullscreenDirty = false;

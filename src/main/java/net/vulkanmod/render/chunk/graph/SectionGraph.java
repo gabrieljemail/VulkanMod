@@ -21,6 +21,7 @@ import net.vulkanmod.render.chunk.util.ResettableQueue;
 import net.vulkanmod.render.profiling.Profiler;
 import org.joml.FrustumIntersection;
 
+import java.util.Arrays;
 import java.util.List;
 
 public class SectionGraph {
@@ -196,14 +197,64 @@ public class SectionGraph {
         }
     }
 
+    // [VoidClient] Distance-throttled rebuild scheduling. Scheduling a rebuild has a
+    // real render-thread cost (the RenderRegion snapshot) and the dispatcher drains
+    // its queues in FIFO order, so a burst of dirty sections far away (lighting
+    // updates, worldgen at the render-distance edge) could stall rebuilds of the
+    // sections right in front of the camera. Near or player-edited sections are
+    // scheduled unconditionally; the rest are sorted by distance and capped per
+    // frame. Deferred sections stay dirty and re-enter this queue on a later frame
+    // while they remain visible (the queue is rebuilt from the in-frustum graph
+    // traversal every frame), so nothing is lost — only smoothed across frames.
     private void scheduleRebuilds() {
-        for (int i = 0; i < this.rebuildQueue.size(); i++) {
+        int size = this.rebuildQueue.size();
+        if (size == 0)
+            return;
+
+        var cameraPos = WorldRenderer.getCameraPos();
+
+        if (!Initializer.CONFIG.throttleFarRebuilds) {
+            for (int i = 0; i < size; i++) {
+                RenderSection section = this.rebuildQueue.get(i);
+                section.rebuildChunkAsync(this.taskDispatcher, this.renderRegionCache, cameraPos);
+                section.setNotDirty();
+            }
+            this.rebuildQueue.clear();
+            return;
+        }
+
+        int nearDist = Initializer.CONFIG.nearRebuildDistance;
+        long nearRebuildDistSq = (long) nearDist * nearDist;
+
+        // distSq << 20 | queue index: sorting the packed keys sorts by distance
+        long[] farSections = new long[size];
+        int farCount = 0;
+
+        for (int i = 0; i < size; i++) {
             RenderSection section = this.rebuildQueue.get(i);
 
-            var cameraPos = WorldRenderer.getCameraPos();
+            double dx = cameraPos.x - (section.xOffset + 8);
+            double dy = cameraPos.y - (section.yOffset + 8);
+            double dz = cameraPos.z - (section.zOffset + 8);
+            long distSq = (long) (dx * dx + dy * dy + dz * dz);
+
+            if (section.isDirtyFromPlayer() || distSq <= nearRebuildDistSq) {
+                section.rebuildChunkAsync(this.taskDispatcher, this.renderRegionCache, cameraPos);
+                section.setNotDirty();
+            } else {
+                farSections[farCount++] = (distSq << 20) | i;
+            }
+        }
+
+        Arrays.sort(farSections, 0, farCount);
+
+        int farBudget = Math.min(farCount, Initializer.CONFIG.maxFarRebuildsPerFrame);
+        for (int i = 0; i < farBudget; i++) {
+            RenderSection section = this.rebuildQueue.get((int) (farSections[i] & 0xFFFFF));
             section.rebuildChunkAsync(this.taskDispatcher, this.renderRegionCache, cameraPos);
             section.setNotDirty();
         }
+
         this.rebuildQueue.clear();
     }
 

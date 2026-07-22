@@ -291,15 +291,21 @@ public class RenderSection {
     }
 
     public void resetDrawParameters(TerrainRenderType renderType) {
+        DrawBuffers drawBuffers = this.chunkArea.getDrawBuffers();
+        AreaBuffer areaBuffer = drawBuffers.getAreaBuffer(renderType);
+        boolean segmentFreed = false;
+
         for (int i = 0; i < QuadFacing.COUNT; ++i) {
-            DrawBuffers drawBuffers = this.chunkArea.getDrawBuffers();
             long ptr = DrawParametersBuffer.getParamsPtr(drawBuffers.getDrawParamsPtr(), this.inAreaIndex, renderType.ordinal(), i);
 
-            AreaBuffer areaBuffer = drawBuffers.getAreaBuffer(renderType);
+            // vertexOffset is in vertex-stride units, the same units freeSegment expects
+            // (setSegmentFree converts to bytes internally). All facings share one
+            // segment, so the first used offset identifies the whole allocation.
+            // Deferred free: frames still in flight may be reading this segment.
             int vertexOffset = DrawParametersBuffer.getVertexOffset(ptr);
-            if (areaBuffer != null && vertexOffset != -1) {
-                int segmentOffset = vertexOffset * drawBuffers.vertexSize;
-                areaBuffer.setSegmentFree(segmentOffset);
+            if (!segmentFreed && areaBuffer != null && vertexOffset != -1) {
+                areaBuffer.freeSegment(vertexOffset);
+                segmentFreed = true;
             }
 
             DrawParametersBuffer.resetParameters(ptr);

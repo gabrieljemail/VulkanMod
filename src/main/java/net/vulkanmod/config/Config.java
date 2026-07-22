@@ -29,6 +29,13 @@ public class Config {
 
     public boolean backFaceCulling = true;
     public boolean textureAnimations = true;
+    public boolean vsyncFramePacing = true;
+    public boolean hudCache = true;
+
+    public boolean directUploads = true;
+    public boolean throttleFarRebuilds = true;
+    public int maxFarRebuildsPerFrame = 8;
+    public int nearRebuildDistance = 64;
 
     public void write() {
         if (!Files.exists(CONFIG_PATH.getParent())) {

@@ -155,6 +155,10 @@ public abstract class Options {
                                     window.updateVsync(value);
                                 },
                                 () -> mcOptions.enableVsync().get()),
+                        new SwitchOption(Component.translatable("vulkanmod.options.vsyncFramePacing"),
+                                value -> config.vsyncFramePacing = value,
+                                () -> config.vsyncFramePacing)
+                                .setTooltip(v -> Component.translatable("vulkanmod.options.vsyncFramePacing.tooltip")),
                         new CyclingOption<>(Component.translatable("options.inactivityFpsLimit"),
                                             InactivityFpsLimit.values(),
                                             value -> mcOptions.inactivityFpsLimit().set(value),
@@ -406,8 +410,52 @@ public abstract class Options {
                                 v -> config.indirectDraw = v,
                                 () -> config.indirectDraw)
                                 .setTooltip(v -> Component.translatable("vulkanmod.options.indirectDraw.tooltip"))
-                                .setImpact(PerformanceImpact.HIGH)
-                })
+                                .setImpact(PerformanceImpact.HIGH),
+                        new SwitchOption(Component.translatable("vulkanmod.options.hudCache"),
+                                v -> config.hudCache = v,
+                                () -> config.hudCache)
+                                .setTooltip(v -> Component.translatable("vulkanmod.options.hudCache.tooltip"))
+                                .setImpact(PerformanceImpact.MEDIUM)
+                }),
+                new OptionBlock("", getPipelineOpts())
+        };
+    }
+
+    private static Option<?>[] getPipelineOpts() {
+        var throttleRebuildsOption = new SwitchOption(Component.translatable("vulkanmod.options.throttleFarRebuilds"),
+                v -> config.throttleFarRebuilds = v,
+                () -> config.throttleFarRebuilds)
+                .setTooltip(v -> Component.translatable("vulkanmod.options.throttleFarRebuilds.tooltip"))
+                .setImpact(PerformanceImpact.MEDIUM);
+
+        var farRebuildBudgetOption = new RangeOption(Component.translatable("vulkanmod.options.maxFarRebuilds"),
+                1, 32, 1,
+                value -> config.maxFarRebuildsPerFrame = value,
+                () -> config.maxFarRebuildsPerFrame)
+                .setTooltip(v -> Component.translatable("vulkanmod.options.maxFarRebuilds.tooltip"));
+
+        var nearRebuildDistanceOption = new RangeOption(Component.translatable("vulkanmod.options.nearRebuildDistance"),
+                16, 128, 8,
+                value -> config.nearRebuildDistance = value,
+                () -> config.nearRebuildDistance)
+                .setTooltip(v -> Component.translatable("vulkanmod.options.nearRebuildDistance.tooltip"));
+
+        farRebuildBudgetOption.setActivationFn(() -> throttleRebuildsOption.getNewValue());
+        nearRebuildDistanceOption.setActivationFn(() -> throttleRebuildsOption.getNewValue());
+        throttleRebuildsOption.setOnChange(() -> {
+            farRebuildBudgetOption.updateActiveState();
+            nearRebuildDistanceOption.updateActiveState();
+        });
+
+        return new Option<?>[]{
+                new SwitchOption(Component.translatable("vulkanmod.options.directUploads"),
+                        v -> config.directUploads = v,
+                        () -> config.directUploads)
+                        .setTooltip(v -> Component.translatable("vulkanmod.options.directUploads.tooltip"))
+                        .setImpact(PerformanceImpact.MEDIUM),
+                throttleRebuildsOption,
+                farRebuildBudgetOption,
+                nearRebuildDistanceOption
         };
     }
 

@@ -17,6 +17,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.ARGB;
+import net.vulkanmod.Initializer;
 import net.vulkanmod.gl.VkGlFramebuffer;
 import net.vulkanmod.gl.VkGlTexture;
 import net.vulkanmod.interfaces.shader.ExtendedRenderPipeline;
@@ -288,6 +289,14 @@ public class VkCommandEncoder implements CommandEncoder {
                 } else {
                     long dstOffset = gpuBufferSlice.offset();
 
+                    // Mapped fast path (always taken on UMA): write in place instead of
+                    // staging + vkCmdCopyBuffer. Both paths make the data visible before
+                    // this frame's draws execute, so the semantics are unchanged.
+                    if (Initializer.CONFIG.directUploads && vkGpuBuffer.buffer.type.mappable()) {
+                        vkGpuBuffer.buffer.type.copyToBuffer(vkGpuBuffer.buffer, byteBuffer, size, 0, dstOffset);
+                        return;
+                    }
+
                     var commandBuffer = Renderer.getInstance().getTransferCb();
 
                     StagingBuffer stagingBuffer = Vulkan.getStagingBuffer();
@@ -300,9 +309,6 @@ public class VkCommandEncoder implements CommandEncoder {
                             commandBuffer.begin(stack);
                         }
 
-                        VkMemoryBarrier.Buffer barrier = VkMemoryBarrier.calloc(1, stack);
-                        barrier.sType$Default();
-
                         VkBufferMemoryBarrier.Buffer bufferMemoryBarriers = VkBufferMemoryBarrier.calloc(1, stack);
                         VkBufferMemoryBarrier bufferMemoryBarrier = bufferMemoryBarriers.get(0);
                         bufferMemoryBarrier.sType$Default();
@@ -314,7 +320,7 @@ public class VkCommandEncoder implements CommandEncoder {
                         vkCmdPipelineBarrier(commandBuffer.handle,
                                              VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
                                              0,
-                                             barrier,
+                                             null,
                                              bufferMemoryBarriers,
                                              null);
 
