@@ -129,6 +129,16 @@ public class FastInputAddon extends Addon {
     }
 
     private void latchKeyboardState() {
+        // Skip entirely while any screen (chat, inventory, a config screen,
+        // pause menu, ...) owns input focus. Vanilla stops feeding physical
+        // key state into KeyMapping while a screen is open specifically so
+        // typing "e" into chat doesn't also fire the inventory keybind;
+        // polling raw GLFW state unconditionally here bypassed that and
+        // fired every matching keybind while typing.
+        if (Minecraft.getInstance().screen != null) {
+            return;
+        }
+
         // Re-reads current GLFW key state directly (bypassing vanilla's
         // queued-since-last-tick callback events) for every key vanilla's
         // KeyMapping system tracks, so the next tick sees the freshest
