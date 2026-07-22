@@ -32,7 +32,8 @@ public class FastInputAddon extends Addon {
             .describe("Poll Rate (Hz)", "How often keyboard state is re-sampled, independent of the 20Hz game tick.");
 
     private double nextPollTime = Double.NEGATIVE_INFINITY;
-    private boolean rawMotionWasEnabled;
+    private Boolean rawMotionWasEnabled;
+    private boolean rawMotionApplyPending;
 
     private FastInputAddon() {
         this.id = "voidclient:fast_input";
@@ -62,23 +63,60 @@ public class FastInputAddon extends Addon {
     }
 
     private void onEnabled() {
-        long window = Minecraft.getInstance().getWindow().handle();
-        rawMotionWasEnabled = GLFW.glfwGetInputMode(window, GLFW.GLFW_RAW_MOUSE_MOTION) == GLFW.GLFW_TRUE;
-        if (GLFW.glfwRawMouseMotionSupported()) {
-            GLFW.glfwSetInputMode(window, GLFW.GLFW_RAW_MOUSE_MOTION, GLFW.GLFW_TRUE);
-        }
         nextPollTime = Double.NEGATIVE_INFINITY;
+        applyRawMotionForcedOn();
     }
 
     private void onDisabled() {
-        long window = Minecraft.getInstance().getWindow().handle();
-        GLFW.glfwSetInputMode(window, GLFW.GLFW_RAW_MOUSE_MOTION, rawMotionWasEnabled ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+        Window window = getWindowOrNull();
+        // If the window never existed while this was "on" (see
+        // applyRawMotionForcedOn), rawMotionWasEnabled is still null and
+        // nothing was ever actually changed — there's nothing to restore.
+        if (window != null && rawMotionWasEnabled != null) {
+            GLFW.glfwSetInputMode(window.handle(), GLFW.GLFW_RAW_MOUSE_MOTION, rawMotionWasEnabled ? GLFW.GLFW_TRUE : GLFW.GLFW_FALSE);
+        }
+        rawMotionWasEnabled = null;
+        rawMotionApplyPending = false;
+    }
+
+    /**
+     * Forces raw mouse motion on, saving the prior state to restore later.
+     * {@code setEnabled(true)} can run before Minecraft's GLFW window
+     * exists — e.g. this addon's persisted "on" state is applied by
+     * {@code AddonConfigStorage.load()} from {@code AddonRegistry.register()},
+     * which Fabric invokes from inside {@code Minecraft}'s own constructor,
+     * before the window field is set. In that case this defers the actual
+     * GLFW call to the first {@link #pollIfDue()} call, which only ever runs
+     * from the per-frame render-loop mixin — well after the window exists.
+     */
+    private void applyRawMotionForcedOn() {
+        Window window = getWindowOrNull();
+        if (window == null) {
+            rawMotionApplyPending = true;
+            return;
+        }
+
+        long handle = window.handle();
+        rawMotionWasEnabled = GLFW.glfwGetInputMode(handle, GLFW.GLFW_RAW_MOUSE_MOTION) == GLFW.GLFW_TRUE;
+        if (GLFW.glfwRawMouseMotionSupported()) {
+            GLFW.glfwSetInputMode(handle, GLFW.GLFW_RAW_MOUSE_MOTION, GLFW.GLFW_TRUE);
+        }
+        rawMotionApplyPending = false;
+    }
+
+    private static Window getWindowOrNull() {
+        Minecraft minecraft = Minecraft.getInstance();
+        return minecraft == null ? null : minecraft.getWindow();
     }
 
     /** Called every rendered frame by {@code FastInputMixin}; internally throttles to {@link #pollRateHz}. */
     public void pollIfDue() {
         if (!isEnabled()) {
             return;
+        }
+
+        if (rawMotionApplyPending) {
+            applyRawMotionForcedOn();
         }
 
         double now = GLFW.glfwGetTime();
