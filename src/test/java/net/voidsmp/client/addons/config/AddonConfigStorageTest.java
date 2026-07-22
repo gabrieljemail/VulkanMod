@@ -77,6 +77,20 @@ class AddonConfigStorageTest {
     }
 
     @Test
+    void saveThenLoadRoundTripsAddonEnabledState() {
+        FakeAddon addon = new FakeAddon();
+        addon.setEnabled(true);
+
+        AddonConfigStorage.save(addon);
+
+        FakeAddon reloaded = new FakeAddon();
+        assertFalse(reloaded.isEnabled());
+        AddonConfigStorage.load(reloaded);
+
+        assertEquals(true, reloaded.isEnabled());
+    }
+
+    @Test
     void loadIgnoresKeysNotPresentInCurrentConfig() {
         FakeAddon addon = new FakeAddon();
         enabledEntry(addon).set(true);

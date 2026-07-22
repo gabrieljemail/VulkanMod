@@ -26,6 +26,13 @@ public final class AddonConfigStorage {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static Path configDir = Path.of("config", "VoidAddons");
 
+    /**
+     * Reserved key for the add-on's on/off state. This lives on {@link Addon}
+     * as a plain {@code boolean} field (not a {@link ConfigEntry}), so it's
+     * written/read separately from the {@code addon.config} loop below.
+     */
+    private static final String ENABLED_KEY = "__enabled";
+
     private AddonConfigStorage() {
     }
 
@@ -51,6 +58,10 @@ public final class AddonConfigStorage {
             throw new RuntimeException("Failed to read addon config: " + file, e);
         }
 
+        if (json.has(ENABLED_KEY)) {
+            addon.setEnabled(json.get(ENABLED_KEY).getAsBoolean());
+        }
+
         for (ConfigEntry<?> entry : addon.config) {
             if (json.has(entry.id)) {
                 applyValue(entry, json.get(entry.id));
@@ -74,6 +85,7 @@ public final class AddonConfigStorage {
 
     public static void save(Addon addon) {
         JsonObject json = new JsonObject();
+        json.addProperty(ENABLED_KEY, addon.isEnabled());
         for (ConfigEntry<?> entry : addon.config) {
             json.add(entry.id, GSON.toJsonTree(entry.get()));
         }

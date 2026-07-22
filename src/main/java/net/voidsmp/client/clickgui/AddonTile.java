@@ -8,6 +8,7 @@ import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.network.chat.Component;
+import net.voidsmp.client.addons.config.AddonConfigStorage;
 import net.voidsmp.client.addons.models.Addon;
 import org.lwjgl.glfw.GLFW;
 
@@ -38,6 +39,7 @@ public class AddonTile extends AbstractButton {
             minecraft.setScreen(new AddonConfigScreen(addon, minecraft.screen));
         } else {
             addon.toggle();
+            AddonConfigStorage.save(addon);
         }
     }
 
