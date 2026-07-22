@@ -34,6 +34,8 @@
 
   "vulkanmod.options.frameQueue": "Render queue size",
   "vulkanmod.options.frameQueue.tooltip": "Higher values might help stabilize frametime but will increase input lag.",
+  "vulkanmod.options.lowLatencyMode": "Low Latency Mode",
+  "vulkanmod.options.lowLatencyMode.tooltip": "Forces the render queue to its minimum depth, reducing input-to-screen delay. Overrides the Render Queue Size setting while on. May cause stutter during heavy CPU frames (chunk rebuild bursts) since there's no longer a queued frame to absorb them. Off by default.",
 
   "vulkanmod.options.backfaceCulling": "Backface Culling",
   "vulkanmod.options.backfaceCulling.tooltip": "Culls not visible block faces on the CPU improving GPU performance. To prevent increased CPU overhead enable Indirect Draw.",

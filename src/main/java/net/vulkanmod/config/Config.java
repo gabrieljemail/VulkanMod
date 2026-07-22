@@ -25,6 +25,7 @@ public class Config {
 
     public int ambientOcclusion = 1;
     public int frameQueueSize = 2;
+    public boolean lowLatencyMode = false;
     public int builderThreads = 0;
 
     public boolean backFaceCulling = true;

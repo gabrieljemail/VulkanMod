@@ -107,7 +107,7 @@ public class Renderer {
 
     public Renderer() {
         device = Vulkan.getVkDevice();
-        framesNum = Initializer.CONFIG.frameQueueSize;
+        framesNum = Initializer.CONFIG.lowLatencyMode ? 1 : Initializer.CONFIG.frameQueueSize;
     }
 
     public static void setLineWidth(float width) {
@@ -579,7 +579,7 @@ public class Renderer {
         //Semaphores need to be recreated in order to make them unsignaled
         destroySyncObjects();
 
-        int newFramesNum = Initializer.CONFIG.frameQueueSize;
+        int newFramesNum = Initializer.CONFIG.lowLatencyMode ? 1 : Initializer.CONFIG.frameQueueSize;
 
         if (framesNum != newFramesNum) {
             UploadManager.INSTANCE.submitUploads();

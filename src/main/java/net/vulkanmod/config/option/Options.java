@@ -469,6 +469,27 @@ public abstract class Options {
     }
 
     public static OptionBlock[] getOtherOpts() {
+        var lowLatencyOption = new SwitchOption(Component.translatable("vulkanmod.options.lowLatencyMode"),
+                v -> {
+                    config.lowLatencyMode = v;
+                    Renderer.scheduleSwapChainUpdate();
+                },
+                () -> config.lowLatencyMode)
+                .setTooltip(v -> Component.translatable("vulkanmod.options.lowLatencyMode.tooltip"))
+                .setImpact(PerformanceImpact.MEDIUM);
+
+        var frameQueueOption = new RangeOption(Component.translatable("vulkanmod.options.frameQueue"),
+                2, 5, 1,
+                value -> {
+                    config.frameQueueSize = value;
+                    Renderer.scheduleSwapChainUpdate();
+                },
+                () -> config.frameQueueSize)
+                .setTooltip(v -> Component.translatable("vulkanmod.options.frameQueue.tooltip"));
+
+        frameQueueOption.setActivationFn(() -> !lowLatencyOption.getNewValue());
+        lowLatencyOption.setOnChange(frameQueueOption::updateActiveState);
+
         return new OptionBlock[]{
                 new OptionBlock("", new Option<?>[]{
                         new RangeOption(Component.translatable("vulkanmod.options.builderThreads"),
@@ -481,14 +502,8 @@ public abstract class Options {
                                 .setTranslator(v -> v == 0
                                 ? Component.translatable("vulkanmod.options.builderThreads.auto")
                                 : Component.literal(String.valueOf(v))),
-                        new RangeOption(Component.translatable("vulkanmod.options.frameQueue"),
-                                2, 5, 1,
-                                value -> {
-                                    config.frameQueueSize = value;
-                                    Renderer.scheduleSwapChainUpdate();
-                                },
-                                () -> config.frameQueueSize)
-                                .setTooltip(v -> Component.translatable("vulkanmod.options.frameQueue.tooltip")),
+                        lowLatencyOption,
+                        frameQueueOption,
                         new SwitchOption(Component.translatable("vulkanmod.options.textureAnimations"),
                                 v -> config.textureAnimations = v,
                                 () -> config.textureAnimations)
