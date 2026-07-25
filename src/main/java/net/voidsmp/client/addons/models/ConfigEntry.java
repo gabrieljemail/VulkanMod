@@ -27,6 +27,10 @@ public class ConfigEntry<T> {
     private Double min;
     private Double max;
 
+    // Display labels for ENUM entries; null otherwise. The backing value (T,
+    // an Integer for ENUM entries) is the chosen label's index into this array.
+    private String[] choices;
+
     private final List<Consumer<T>> listeners = new ArrayList<>();
 
     public ConfigEntry(String id, ConfigEntryType type, T defaultValue) {
@@ -94,5 +98,15 @@ public class ConfigEntry<T> {
 
     public Double max() {
         return max;
+    }
+
+    /** Sets the display labels for an {@link ConfigEntryType#ENUM} entry, in order. */
+    public ConfigEntry<T> choices(String... choices) {
+        this.choices = choices;
+        return this;
+    }
+
+    public String[] choices() {
+        return choices;
     }
 }

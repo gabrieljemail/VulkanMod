@@ -45,6 +45,8 @@ public class AddonConfigScreen extends Screen {
                 addRenderableWidget(booleanWidget(x, y, entry));
             } else if (entry.type == ConfigEntryType.STRING) {
                 addRenderableWidget(stringWidget(x, y, entry));
+            } else if (entry.type == ConfigEntryType.ENUM) {
+                addRenderableWidget(enumWidget(x, y, entry));
             } else {
                 addRenderableWidget(rangeWidget(x, y, entry));
             }
@@ -80,6 +82,15 @@ public class AddonConfigScreen extends Screen {
                 numEntry.set(convert(entry.type, value));
             }
         };
+    }
+
+    @SuppressWarnings("unchecked")
+    private SpriteButton enumWidget(int x, int y, ConfigEntry<?> entry) {
+        ConfigEntry<Integer> enumEntry = (ConfigEntry<Integer>) entry;
+        String[] choices = enumEntry.choices();
+        return new SpriteButton(x, y, ROW_WIDTH, ROW_HEIGHT,
+            label(entry, choices[enumEntry.get()]),
+            () -> enumEntry.set((enumEntry.get() + 1) % choices.length));
     }
 
     @SuppressWarnings("unchecked")

@@ -1,6 +1,8 @@
 package net.voidsmp.client.addons;
 
 import net.voidsmp.client.addons.config.AddonConfigStorage;
+import net.voidsmp.client.addons.hud.HudElementManager;
+import net.voidsmp.client.addons.hud.HudRenderable;
 import net.voidsmp.client.addons.models.Addon;
 import net.voidsmp.client.addons.models.ConfigEntry;
 
@@ -28,6 +30,10 @@ public final class AddonRegistry {
             // (constructed at client init, never re-instantiated), so this
             // never needs to be detached.
             entry.addListener(v -> AddonConfigStorage.save(addon));
+        }
+
+        if (addon instanceof HudRenderable hudRenderable) {
+            HudElementManager.register(addon, hudRenderable);
         }
 
         // TODO: invoke addon.onRegister(...) once the lifecycle hook's contract

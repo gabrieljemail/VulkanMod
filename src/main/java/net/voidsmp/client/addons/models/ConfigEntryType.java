@@ -12,5 +12,7 @@ public enum ConfigEntryType {
     LONG,
     STRING,
     BYTE,
-    UBYTE
+    UBYTE,
+    // Backing value is the chosen option's index into ConfigEntry#choices().
+    ENUM
 }

@@ -72,6 +72,7 @@ import net.voidsmp.client.addons.ChunkRes;
 import net.voidsmp.client.addons.FastInputAddon;
 import net.voidsmp.client.addons.Fullbright;
 import net.voidsmp.client.addons.MotionBlur;
+import net.voidsmp.client.addons.PlayerStateHud;
 import net.voidsmp.client.addons.TestAddon;
 import net.voidsmp.client.addons.config.AddonConfigStorage;
 import net.voidsmp.client.clickgui.ClickGUI;
@@ -90,5 +91,6 @@ public class VoidClient implements ClientModInitializer {
         AddonRegistry.register(new MotionBlur());
         AddonRegistry.register(new ChunkRes());
         AddonRegistry.register(FastInputAddon.INSTANCE);
+        AddonRegistry.register(new PlayerStateHud());
     }
 }

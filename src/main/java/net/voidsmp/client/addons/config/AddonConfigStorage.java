@@ -76,7 +76,7 @@ public final class AddonConfigStorage {
             case STRING -> element.getAsString();
             case FLOAT, UFLOAT -> element.getAsFloat();
             case SHORT, USHORT -> element.getAsShort();
-            case INT, UINT -> element.getAsInt();
+            case INT, UINT, ENUM -> element.getAsInt();
             case LONG, ULONG -> element.getAsLong();
             case BYTE, UBYTE -> element.getAsByte();
         };
